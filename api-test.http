@@ -1,0 +1,28 @@
+@url = http://localhost:3000
+
+###
+GET {{url}}/accounts
+
+###
+
+POST {{url}}/accounts
+content-type: application/json
+
+{
+    "name": "Test Account",
+    "email": "test@test.test",
+    "password": "password"
+}
+
+###
+GET {{url}}/accounts?name=Jules
+
+###
+
+PUT {{url}}/plats
+content-type: application/json
+
+{
+    "name": "kebab",
+    "prix": 2
+}
