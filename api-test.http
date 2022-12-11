@@ -1,4 +1,5 @@
 @url = http://localhost:3000
+@token = 439OOidM9DsDPvB2JoJtilUmGdS7I3QH7cgt4d5OLqKDa2M0UUWVXJ9pGk1JKoR8SmkkugWZTEChHpkxuJbhuKe8NTIlrTfbByow.1670401344891
 
 ###
 GET {{url}}/accounts
@@ -18,11 +19,33 @@ content-type: application/json
 GET {{url}}/accounts?name=Jules
 
 ###
-
-PUT {{url}}/plats
-content-type: application/json
+POST {{url}}/authenticate
+Content-Type: application/json
 
 {
-    "name": "kebab",
-    "prix": 2
+    "name": "jules",
+    "password": "azerty"
 }
+
+###
+GET {{url}}/tweets
+Authorization: Bearer {{token}}
+
+###
+GET {{url}}/checkToken
+Authorization: Bearer {{token}}
+
+###
+GET {{url}}/likes
+Authorization: Bearer {{token}}
+
+###
+POST {{url}}/removeBookmark
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "tweetId": 1
+}
+
+###

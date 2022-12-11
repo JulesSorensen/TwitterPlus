@@ -1,13 +1,15 @@
 import express from 'express';
 import bodyParser from 'body-parser';
 import mariadb from 'mariadb';
-import startServices from '../services/index.js';
+import startServices from './services/index.js';
+import * as dotenv from 'dotenv'
+dotenv.config()
 
 const pool = mariadb.createPool({
-    host: 'localhost',
-    user: 'root',
-    password: '',
-    database: 'twitterplus',
+    host: process.env.DB_HOST,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
+    database: process.env.DB_NAME,
     connectionLimit: 30
 });
 
