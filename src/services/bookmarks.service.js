@@ -15,7 +15,7 @@ export default function bookmarksService(app, pool) {
         return res.json(rows);
     })
 
-    app.post('/addBookmark', async (req, res) => {
+    app.post('/bookmarks', async (req, res) => {
         const { tweetId } = req.body;
         const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');
@@ -42,7 +42,7 @@ export default function bookmarksService(app, pool) {
         return res.json({ success: true });
     })
 
-    app.post('/removeBookmark', async (req, res) => {
+    app.delete('/bookmarks', async (req, res) => {
         const { tweetId } = req.body;
         const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');

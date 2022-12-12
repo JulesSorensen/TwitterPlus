@@ -4,6 +4,7 @@ import tweetsService from './tweets.service.js';
 import likesService from './likes.service.js';
 import bookmarksService from './bookmarks.service.js';
 import surbscribeService from './subscribe.service.js';
+import retweetsService from './retweets.service.js';
 
 async function startServices(app, pool) {
     accountsService(app, pool);
@@ -12,6 +13,7 @@ async function startServices(app, pool) {
     likesService(app, pool);
     bookmarksService(app, pool);
     surbscribeService(app, pool);
+    retweetsService(app, pool);
 }
 
 export default startServices;
