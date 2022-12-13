@@ -11,12 +11,10 @@ export default function retweetsService(app, pool) {
         const originalTweet = (await conn.query("SELECT * FROM tweets WHERE id = ?", [retweetOfId]))?.[0];
         if (!originalTweet) return launchError(res, 404, 'Tweet not found');
 
-        await conn.query("INSERT INTO tweets (authorId, isRetweet, retweeterId, retweetOfId, withComments) VALUES (?, ?, ?, ?, ?)", [
-            originalTweet.authorId,
-            true,
+        await conn.query("INSERT INTO tweets (authorId, isRetweet, retweetOfId) VALUES (?, ?, ?)", [
             id,
-            retweetOfId,
-            false
+            true,
+            retweetOfId
         ]);
 
         let newRtNb = originalTweet.retweetsNb + 1;
@@ -35,7 +33,7 @@ export default function retweetsService(app, pool) {
         if (error) return launchError(res, 401, 'Invalid token');
 
         const conn = await pool.getConnection();
-        const retweetTweet = await conn.query("SELECT id, retweetOfId FROM tweets WHERE retweetOfId = ? AND retweeterId = ? AND isRetweet = TRUE", [
+        const retweetTweet = await conn.query("SELECT id, retweetOfId FROM tweets WHERE retweetOfId = ? AND authorId = ? AND isRetweet = TRUE", [
             tweetId,
             id
         ]);

@@ -1,3 +1,5 @@
+import sha1 from 'sha1';
+
 export const checkToken = async (req, pool) => {
     const token = req.headers.authorization?.split(' ')[1];
     if (!token) return { error: true, message: 'Missing token' };
@@ -19,7 +21,7 @@ export default function authService(app, pool) {
         const rows = await conn.query("SELECT id FROM accounts WHERE (name = ? or email = ?) and password = ?", [
             name ?? null,
             email ?? null,
-            password
+            sha1(password)
         ]);
 
         if (rows.length === 0) {
@@ -47,10 +49,11 @@ export default function authService(app, pool) {
     })
 
     app.get('/logout', async (req, res) => {
-        const token = req.headers?.authorization?.split(' ')?.[1];
+        const { id, error } = await checkToken(req, pool);
+        if (error) return res.status(401).send({ error: true, message: 'Invalid token' });
         const conn = await pool.getConnection();
-        await conn.query("UPDATE accounts SET token = null WHERE token = ?", [
-            token
+        await conn.query("UPDATE accounts SET token = null WHERE id = ?", [
+            id
         ]);
         conn.end();
 

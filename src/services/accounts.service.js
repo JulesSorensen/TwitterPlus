@@ -1,5 +1,6 @@
 import { checkToken } from "./auth.service.js";
 import launchError from "../error.js";
+import sha1 from 'sha1';
 
 export default function accountsService(app, pool) {
     app.get('/nameAvailability', async (req, res) => {
@@ -67,8 +68,6 @@ export default function accountsService(app, pool) {
         if (!account.name || !account.email || !account.password) return res.status(400).send({ error: true, message: 'Missing required fields' });
         account.name = account.name.replace(/\s+/g, '').trim();
         const conn = await pool.getConnection();
-        const { id, error } = await checkToken(req, pool);
-        if (error) return launchError(res, 401, 'Invalid token');
 
         const existingAccount = await conn.query("SELECT id FROM accounts WHERE name = ? OR email = ?", [account.name, account.email]);
         if (existingAccount.length > 0) return res.status(400).send({ error: true, message: 'Account already exists' });
@@ -76,7 +75,7 @@ export default function accountsService(app, pool) {
         await conn.query("INSERT INTO accounts (name, email, password) value (?, ?, ?)", [
             account.name,
             account.email,
-            account.password
+            sha1(account.password)
         ]);
 
         return res.json({ error: false, message: 'Account created' });
