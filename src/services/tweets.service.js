@@ -21,12 +21,16 @@ export default function tweetsService(app, pool) {
             if (retweeted.some(retweet => retweet.retweetOfId === tweet.id)) tweet.retweeted = true;
             if (bookmarked.some(bookmark => bookmark.tweetId === tweet.id)) tweet.bookmarked = true;
             if (tweet.isRetweet) {
-                const account = await conn.query("SELECT name, picture, certification FROM accounts WHERE id = ?", [tweet.authorId]);
-                const originalTweet = await conn.query("SELECT id, content, createdAt FROM tweets WHERE id = ?", [tweet.retweetOfId]);
+                const account = await conn.query("SELECT name FROM accounts WHERE id = ?", [tweet.authorId]);
+                const originalTweet = await conn.query("SELECT authorId, content, createdAt FROM tweets WHERE id = ?", [tweet.retweetOfId]);
+                const originalAuthor = await conn.query("SELECT name, picture, certification FROM accounts WHERE id = ?", [originalTweet[0].authorId]);
 
                 tweet = {
                     ...tweet,
-                    id: originalTweet[0].id,
+                    id: tweet.retweetOfId,
+                    authorId: originalTweet[0].authorId,
+                    name: originalAuthor[0].name,
+                    picture: originalAuthor[0].picture,
                     retweeterName: account[0].name,
                     content: originalTweet[0].content,
                     createdAt: originalTweet[0].createdAt,
@@ -98,12 +102,16 @@ export default function tweetsService(app, pool) {
             if (retweeted.some(retweet => retweet.retweetOfId === tweet.id)) tweet.retweeted = true;
             if (bookmarked.some(bookmark => bookmark.tweetId === tweet.id)) tweet.bookmarked = true;
             if (tweet.isRetweet) {
-                const account = await conn.query("SELECT name, picture, certification FROM accounts WHERE id = ?", [tweet.authorId]);
-                const originalTweet = await conn.query("SELECT id, content, createdAt FROM tweets WHERE id = ?", [tweet.retweetOfId]);
+                const account = await conn.query("SELECT name FROM accounts WHERE id = ?", [tweet.authorId]);
+                const originalTweet = await conn.query("SELECT authorId, content, createdAt FROM tweets WHERE id = ?", [tweet.retweetOfId]);
+                const originalAuthor = await conn.query("SELECT name, picture, certification FROM accounts WHERE id = ?", [originalTweet[0].authorId]);
 
                 tweet = {
                     ...tweet,
-                    id: originalTweet[0].id,
+                    id: tweet.retweetOfId,
+                    authorId: originalTweet[0].authorId,
+                    name: originalAuthor[0].name,
+                    picture: originalAuthor[0].picture,
                     retweeterName: account[0].name,
                     content: originalTweet[0].content,
                     createdAt: originalTweet[0].createdAt,
@@ -141,7 +149,7 @@ export default function tweetsService(app, pool) {
 
         const conn = await pool.getConnection();
         if (parentId) {
-            const parentTweet = (await conn.query("SELECT id, isRetweet, withComments FROM tweets WHERE id = ?", [parentId]))?.[0];
+            const parentTweet = (await conn.query("SELECT id, isRetweet, withComments, commentsNb FROM tweets WHERE id = ?", [parentId]))?.[0];
             if (!parentTweet) return launchError(res, 404, 'Tweet not found');
             if (parentTweet.isRetweet) return launchError(res, 400, 'You can\'t comment a retweet');
             if (!parentTweet.withComments) return launchError(res, 400, 'Comments are disabled for this tweet');
@@ -161,7 +169,7 @@ export default function tweetsService(app, pool) {
         } else {
             if (!content) return launchError(res, 400, 'Content is required');
             await conn.query("INSERT INTO tweets (authorId, content, withComments) VALUES (?, ?, ?)", [
-                id,,
+                id,
                 content.replace(/\s+/g, ' ').trim(),
                 withComments ?? false
             ]);
@@ -177,14 +185,14 @@ export default function tweetsService(app, pool) {
         if (error) return launchError(res, 401, 'Invalid token');
 
         const conn = await pool.getConnection();
-        const rows = await conn.query("SELECT id, authorId FROM tweets WHERE id = ? AND isRetweet = FALSE", [
+        const rows = await conn.query("SELECT id, authorId, parentId FROM tweets WHERE id = ? AND isRetweet = FALSE", [
             tweetId
         ]);
         if (rows.length === 0) return launchError(res, 404, 'Tweet not found', conn);
         if (rows[0].authorId !== id) return launchError(res, 403, 'You can\'t delete this tweet', conn);
 
         if (rows[0].parentId) {
-            const parentTweet = (await conn.query("SELECT * FROM tweets WHERE id = ?", [rows[0].parentId]))?.[0];
+            const parentTweet = (await conn.query("SELECT commentsNb FROM tweets WHERE id = ?", [rows[0].parentId]))?.[0];
             if (!parentTweet) return launchError(res, 404, 'Tweet not found', conn);
 
             let newCmNb = parentTweet.commentsNb - 1;
@@ -197,22 +205,23 @@ export default function tweetsService(app, pool) {
             await conn.query("DELETE FROM bookmarks WHERE tweetId = ?", [tweetId]);
         }
 
-        let childs = [];
-        let parents = [tweetId];
         await conn.query("DELETE FROM tweets WHERE id = ?", [
             tweetId
         ]);
+
+        let childsToDelete = [tweetId];
         do {
-            childs = await conn.query("SELECT id FROM tweets WHERE parentId IN (?)", [parents]);
-            parents = childs.map(child => child.id);
-            await conn.query("DELETE FROM tweets WHERE id IN (?)", [parents]);
-            await conn.query("DELETE FROM likes WHERE tweetId IN (?)", [parents]);
-            await conn.query("DELETE FROM bookmarks WHERE tweetId IN (?)", [parents]);
-        } while (childs.length > 0);
-        
+            const tweetToDeletes = await conn.query("SELECT id FROM tweets WHERE parentId IN (?)", [childsToDelete]);
+            childsToDelete = tweetToDeletes.map(tweet => tweet.id);
+            if (childsToDelete.length > 0) {
+                await conn.query("DELETE FROM likes WHERE tweetId IN (?)", [childsToDelete]);
+                await conn.query("DELETE FROM bookmarks WHERE tweetId IN (?)", [childsToDelete]);
+                await conn.query("DELETE FROM tweets WHERE id IN (?)", [childsToDelete]);
+            }
+        } while (childsToDelete.length > 0);
         conn.end();
 
         if (rows.length === 0) return launchError(res, 404, 'Account not found');
-        return res.json(rows[0]);
+        return res.json({ error: false, message: 'Tweet deleted' });
     })
 }

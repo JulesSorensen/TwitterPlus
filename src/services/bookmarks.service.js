@@ -7,12 +7,25 @@ export default function bookmarksService(app, pool) {
         if (error) return launchError(res, 401, 'Invalid token');
 
         const conn = await pool.getConnection();
-        const rows = (await conn.query("SELECT tweetId FROM bookmarks WHERE userId = ?", [
+        const tweetIds = (await conn.query("SELECT tweetId FROM bookmarks WHERE userId = ?", [
             id
         ])).map(row => row.tweetId);
         conn.end();
 
-        return res.json(rows);
+        let tweets = await conn.query("SELECT t.id, a.name, a.picture, a.certification, authorId, parentId, content, t.likes, commentsNb, retweetsNb, isRetweet, retweetOfId, t.createdAt, withComments FROM tweets t JOIN accounts a ON a.id = t.authorId WHERE t.id IN (?)", [tweetIds]);
+        const liked = await conn.query("SELECT tweetId FROM likes WHERE userId = ?", [id]);
+        const retweeted = await conn.query("SELECT retweetOfId FROM tweets WHERE authorId = ? AND isRetweet = TRUE", [id]);
+        const bookmarked = await conn.query("SELECT tweetId FROM bookmarks WHERE userId = ?", [id]);
+
+        tweets = await Promise.all(tweets.map(async tweet => {
+            if (tweet.authorId === id && !tweet.isRetweet) tweet.self = true;
+            if (liked.some(like => like.tweetId === tweet.id)) tweet.liked = true;
+            if (retweeted.some(retweet => retweet.retweetOfId === tweet.id)) tweet.retweeted = true;
+            if (bookmarked.some(bookmark => bookmark.tweetId === tweet.id)) tweet.bookmarked = true;
+            return tweet;
+        }))
+
+        return res.json(tweets);
     })
 
     app.post('/bookmarks', async (req, res) => {
