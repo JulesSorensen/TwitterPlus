@@ -1,0 +1,33 @@
+# RDC
+
+- Une gestion des utilisateur (login, mot de passe) (3 pts)
+  - Implémenté vous-même sans passer par une librairie
+    - [x] Fait dans service accounts.service.js
+  - Les mots de passe doivent être hachés. Vous pouvez utiliser une librairie ou réutiliser du code existant pour la fonction de hachage.
+    - [x] Utilisation de la librairie sha1 pour hasher les MDP4
+  - A l’authentification, un token (chaînes de caractères aléatoires) est associée à l’utilisateur
+    - [x] Dans le auth.service.js 18:5
+  - A chaque requête CRUD, le client passe le token dans un header Authorization de valeur Bearer TOKEN
+    - [x] Fait dans le front, token requis/vérifies le token dans certains service (voir README)
+  - A la déconnexion, le serveur supprime le token de la BDD
+    - [x] Dans le auth.service.js 52:5
+- La web app doit proposer de lister des ressources (1 pt)
+  - [x] Page liste des tweets (racine du projet une fois connecté)
+- La web app doit proposer une 404 personnalisée (1 pt)
+  - [x] Essayer d'aller sur une page non existante (/oups)
+- Web app jolie et responsive (avec flex et grid par exemple) (2 pt)
+  - [x] Flex et grid utilisés, majoritairement du flex
+  - [x] Responsive entièrement fonctionnel (menu modifié pour)
+- Proposer du CRUD réactif (ça change dès que je clique) (3 pt)
+  - [x] Vérifier lors de la publication d'un tweet ou lors d'un retweet
+- Proposer des fonctionnalités intéressantes (par exemple la recherche) (3 pts)
+  - [x] Recherche faite
+  - [x] Affichage de suggestion (5 utilisateurs aléatoires)
+  - [x] Pouvoir enregistrer des tweets (signets/bookmarks)
+  - [x] Enregistrer une photo de profil et bannière
+  - [x] Thème sombre
+- Le projet doit être hébergé et accessible sur internet (par exemple alwaysdata propose gratuitement un hébergement nodejs) (3 pts)
+  - [x] Fait, aller sur [le site ici](http://twitterplus.alwaysdata.net)
+- Une gestion des erreurs correcte (par exemple: interdiction d’ajout de doublons) (3 pts)
+  - [x] En back une grosse partie gère la gestion des erreurs (ne pas pouvoir suivre deux fois une même personne, supprimer un tweet dont on est pas l'auteur, etc..)
+  - [x] En front aussi mais pour des fonctionnalités visuelles (toast d'erreur lors d'un tweet trop long, affichage d'erreur lors d'un login incorrect, etc...)

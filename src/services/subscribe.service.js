@@ -13,6 +13,7 @@ export default function surbscribeService(app, pool) {
             accountId
         ]);
         conn.end();
+
         if (rows.length > 0) return res.json({ isSubscribed: true });
         return res.json({ isSubscribed: false });
     })
@@ -28,6 +29,9 @@ export default function surbscribeService(app, pool) {
             accountToSubId
         ]);
         if (rows.length === 0) return launchError(res, 404, 'Account not found');
+
+        const isAlreadySubscribed = await conn.query("SELECT id FROM subscribers WHERE userId = ? AND subscribedToId = ?", [id, accountToSubId]);
+        if (isAlreadySubscribed.length > 0) return launchError(res, 400, 'You are already subscribed to this account');
 
         await conn.query("INSERT INTO subscribers (userId, subscribedToId) VALUES (?, ?)", [
             id,
@@ -58,6 +62,9 @@ export default function surbscribeService(app, pool) {
             accountToUnsubId
         ]);
         if (rows.length === 0) return launchError(res, 404, 'Account not found');
+
+        const isAlreadySubscribed = await conn.query("SELECT id FROM subscribers WHERE userId = ? AND subscribedToId = ?", [id, accountToUnsubId]);
+        if (isAlreadySubscribed.length === 0) return launchError(res, 400, 'You are not subscribed to this account');
 
         await conn.query("DELETE FROM subscribers WHERE userId = ? AND subscribedToId = ?", [
             id,

@@ -16,11 +16,12 @@ export const checkToken = async (req, pool) => {
 
 export default function authService(app, pool) {
     app.post('/authenticate', async (req, res) => {
-        const { name, email, password } = req.body;
+        const { name, password } = req.body;
         const conn = await pool.getConnection();
-        const rows = await conn.query("SELECT id FROM accounts WHERE (name = ? or email = ?) and password = ?", [
+
+        const rows = await conn.query("SELECT id FROM accounts WHERE (name = ? OR email = ?) AND password = ?", [
             name ?? null,
-            email ?? null,
+            name ?? null,
             sha1(password)
         ]);
 

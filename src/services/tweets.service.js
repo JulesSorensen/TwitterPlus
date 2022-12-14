@@ -227,6 +227,9 @@ export default function tweetsService(app, pool) {
             await conn.query("DELETE FROM bookmarks WHERE tweetId = ?", [tweetId]);
         }
 
+        const retweets = await conn.query("SELECT id FROM tweets WHERE retweetOfId = ? AND isRetweet = TRUE", [tweetId]);
+        if (retweets.length > 0) await conn.query("DELETE FROM tweets WHERE id IN (?)", [retweets.map(retweet => retweet.id)]);
+
         await conn.query("DELETE FROM tweets WHERE id = ?", [
             tweetId
         ]);

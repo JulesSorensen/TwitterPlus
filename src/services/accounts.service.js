@@ -116,21 +116,12 @@ export default function accountsService(app, pool) {
         return res.json({ error: false, message: 'Password updated' });
     })
 
-    app.delete('/accounts', async (req, res) => {
-        const conn = await pool.getConnection();
-        const { id, error } = await checkToken(req, pool);
-        if (error) return launchError(res, 401, 'Invalid token');
-
-        await conn.query("DELETE FROM accounts WHERE id = ?", [id]);
-        return res.json({ error: false, message: 'Account deleted' });
-    })
-
     app.get('/leaderboard', async (req, res) => {
         const conn = await pool.getConnection();
         const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');
 
-        const accounts = await conn.query("SELECT name, picture, certification, subscribersNb, createdAt FROM accounts ORDER BY subscribersNb DESC LIMIT 10");
+        const accounts = await conn.query("SELECT name, picture, certification, subscribersNb, createdAt FROM accounts ORDER BY subscribersNb DESC LIMIT 3");
 
         return res.json(accounts);
     })
