@@ -52,9 +52,7 @@ export default function authService(app, pool) {
         const { id, error } = await checkToken(req, pool);
         if (error) return res.status(401).send({ error: true, message: 'Invalid token' });
         const conn = await pool.getConnection();
-        await conn.query("UPDATE accounts SET token = null WHERE id = ?", [
-            id
-        ]);
+        await conn.query("UPDATE accounts SET token = null WHERE id = ?", [id]);
         conn.end();
 
         res.end();

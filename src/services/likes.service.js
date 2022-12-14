@@ -20,7 +20,6 @@ export default function likesService(app, pool) {
         if (like.length !== 0) return launchError(res, 404, 'You already liked this tweet', conn);
 
         const likes = originalTweet[0].likes + 1;
-
         await conn.query("INSERT INTO likes (tweetId, userId) VALUES (?, ?)", [
             tweetId,
             id
@@ -29,6 +28,10 @@ export default function likesService(app, pool) {
             likes,
             tweetId
         ]);
+
+        const account = await conn.query("SELECT likes FROM accounts WHERE id = ?", [id]);
+        const accountLikes = account[0].likes + 1;
+        await conn.query("UPDATE accounts SET likes = ? WHERE id = ?", [accountLikes, id]);
 
         conn.end();
 
@@ -53,7 +56,6 @@ export default function likesService(app, pool) {
         if (like.length === 0) return launchError(res, 404, 'You didn\'t like this tweet', conn);
 
         const likes = originalTweet[0].likes - 1;
-
         await conn.query("DELETE FROM likes WHERE tweetId = ? AND userId = ?", [
             tweetId,
             id
@@ -62,6 +64,10 @@ export default function likesService(app, pool) {
             likes,
             tweetId
         ]);
+
+        const account = await conn.query("SELECT likes FROM accounts WHERE id = ?", [id]);
+        const accountLikes = account[0].likes - 1;
+        await conn.query("UPDATE accounts SET likes = ? WHERE id = ?", [accountLikes, id]);
 
         conn.end();
 

@@ -21,20 +21,18 @@ export default function tweetsService(app, pool) {
             if (retweeted.some(retweet => retweet.retweetOfId === tweet.id)) tweet.retweeted = true;
             if (bookmarked.some(bookmark => bookmark.tweetId === tweet.id)) tweet.bookmarked = true;
             if (tweet.isRetweet) {
-                const account = await conn.query("SELECT name FROM accounts WHERE id = ?", [tweet.authorId]);
-                const originalTweet = await conn.query("SELECT authorId, content, createdAt FROM tweets WHERE id = ?", [tweet.retweetOfId]);
+                const account = await conn.query("SELECT id, name FROM accounts WHERE id = ?", [tweet.authorId]);
+                const originalTweet = await conn.query("SELECT id, authorId, content, createdAt FROM tweets WHERE id = ?", [tweet.retweetOfId]);
                 const originalAuthor = await conn.query("SELECT name, picture, certification FROM accounts WHERE id = ?", [originalTweet[0].authorId]);
 
                 tweet = {
-                    ...tweet,
-                    id: tweet.retweetOfId,
-                    authorId: originalTweet[0].authorId,
+                    ...originalTweet[0],
                     name: originalAuthor[0].name,
                     picture: originalAuthor[0].picture,
+                    isRetweet: true,
                     retweeterName: account[0].name,
-                    content: originalTweet[0].content,
-                    createdAt: originalTweet[0].createdAt,
-                    retweetCreatedAt: tweet.createdAt,
+                    retweeterSelf: account[0].id === id,
+                    retweetCreatedAt: tweet.createdAt
                 }
             }
             return tweet;
@@ -107,15 +105,13 @@ export default function tweetsService(app, pool) {
                 const originalAuthor = await conn.query("SELECT name, picture, certification FROM accounts WHERE id = ?", [originalTweet[0].authorId]);
 
                 tweet = {
-                    ...tweet,
-                    id: tweet.retweetOfId,
-                    authorId: originalTweet[0].authorId,
+                    ...originalTweet[0],
                     name: originalAuthor[0].name,
                     picture: originalAuthor[0].picture,
+                    isRetweet: true,
                     retweeterName: account[0].name,
-                    content: originalTweet[0].content,
-                    createdAt: originalTweet[0].createdAt,
-                    retweetCreatedAt: tweet.createdAt,
+                    retweeterSelf: account[0].id === id,
+                    retweetCreatedAt: tweet.createdAt
                 }
             }
             return tweet;
@@ -129,15 +125,44 @@ export default function tweetsService(app, pool) {
         const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');
 
+        const subscribedIds = (await pool.query("SELECT subscribedToId FROM subscribers WHERE userId = ?", [id])).map(sub => sub.subscribedToId);
+        subscribedIds.push(id);
+
         const page = (((req.query.page ?? 1) - 1) * 30);
         const conn = await pool.getConnection();
-        const rows = await conn.query("SELECT id, authorId, parentId, content, likes, commentsNb, retweetsNb, isRetweet, createdAt, withComments FROM tweets WHERE authorId = ? LIMIT 30 OFFSET ?", [
-            id,
+        let tweets = await conn.query("SELECT t.id, a.name, a.picture, a.certification, authorId, parentId, content, t.likes, commentsNb, retweetsNb, isRetweet, retweetOfId, t.createdAt, withComments FROM tweets t JOIN accounts a ON a.id = t.authorId WHERE parentId IS NULL AND t.authorId IN (?) ORDER BY t.createdAt DESC LIMIT 30 OFFSET ?", [
+            subscribedIds,
             page
         ]);
+        const liked = await conn.query("SELECT tweetId FROM likes WHERE userId = ?", [id]);
+        const retweeted = await conn.query("SELECT retweetOfId FROM tweets WHERE authorId = ? AND isRetweet = TRUE", [id]);
+        const bookmarked = await conn.query("SELECT tweetId FROM bookmarks WHERE userId = ?", [id]);
+
+        tweets = await Promise.all(tweets.map(async tweet => {
+            if (tweet.authorId === id && !tweet.isRetweet) tweet.self = true;
+            if (liked.some(like => like.tweetId === tweet.id)) tweet.liked = true;
+            if (retweeted.some(retweet => retweet.retweetOfId === tweet.id)) tweet.retweeted = true;
+            if (bookmarked.some(bookmark => bookmark.tweetId === tweet.id)) tweet.bookmarked = true;
+            if (tweet.isRetweet) {
+                const account = await conn.query("SELECT name FROM accounts WHERE id = ?", [tweet.authorId]);
+                const originalTweet = await conn.query("SELECT authorId, content, createdAt FROM tweets WHERE id = ?", [tweet.retweetOfId]);
+                const originalAuthor = await conn.query("SELECT name, picture, certification FROM accounts WHERE id = ?", [originalTweet[0].authorId]);
+
+                tweet = {
+                    ...originalTweet[0],
+                    name: originalAuthor[0].name,
+                    picture: originalAuthor[0].picture,
+                    isRetweet: true,
+                    retweeterName: account[0].name,
+                    retweeterSelf: account[0].id === id,
+                    retweetCreatedAt: tweet.createdAt
+                }
+            }
+            return tweet;
+        }))
         conn.end();
 
-        return res.json(rows);
+        return res.json(tweets);
     })
 
     app.post('/tweets', async (req, res) => {

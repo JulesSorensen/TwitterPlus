@@ -6,9 +6,9 @@ export default function surbscribeService(app, pool) {
         const { id: accountId } = req.params;
         const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');
-        
+
         const conn = await pool.getConnection();
-        const rows = await conn.query("SELECT id FROM subscriptions WHERE userId = ? AND subscribedToId = ?", [
+        const rows = await conn.query("SELECT id FROM subscribers WHERE userId = ? AND subscribedToId = ?", [
             id,
             accountId
         ]);
@@ -21,6 +21,7 @@ export default function surbscribeService(app, pool) {
         const { id: accountToSubId } = req.body;
         const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');
+        if (id === accountToSubId) return launchError(res, 400, 'You can\'t subscribe to yourself');
 
         const conn = await pool.getConnection();
         const rows = await conn.query("SELECT id FROM accounts WHERE id = ?", [
@@ -28,10 +29,19 @@ export default function surbscribeService(app, pool) {
         ]);
         if (rows.length === 0) return launchError(res, 404, 'Account not found');
 
-        await conn.query("INSERT INTO subscriptions (userId, subscribedToId) VALUES (?, ?)", [
+        await conn.query("INSERT INTO subscribers (userId, subscribedToId) VALUES (?, ?)", [
             id,
             accountToSubId
         ]);
+
+        const account = await conn.query("SELECT subscribedNb FROM accounts WHERE id = ?", [id]);
+        const accountSubs = account[0].subscribedNb + 1;
+        await conn.query("UPDATE accounts SET subscribedNb = ? WHERE id = ?", [accountSubs, id]);
+
+        const accountToSub = await conn.query("SELECT subscribersNb FROM accounts WHERE id = ?", [accountToSubId]);
+        const accountToSubSubs = accountToSub[0].subscribersNb + 1;
+        await conn.query("UPDATE accounts SET subscribersNb = ? WHERE id = ?", [accountToSubSubs, accountToSubId]);
+
         conn.end();
 
         return res.json({ error: false, message: 'Subscribed' });
@@ -41,6 +51,7 @@ export default function surbscribeService(app, pool) {
         const { id: accountToUnsubId } = req.params;
         const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');
+        if (id === accountToUnsubId) return launchError(res, 400, 'You can\'t unsubscribe from yourself');
 
         const conn = await pool.getConnection();
         const rows = await conn.query("SELECT id FROM accounts WHERE id = ?", [
@@ -48,10 +59,19 @@ export default function surbscribeService(app, pool) {
         ]);
         if (rows.length === 0) return launchError(res, 404, 'Account not found');
 
-        await conn.query("DELETE FROM subscriptions WHERE userId = ? AND subscribedToId = ?", [
+        await conn.query("DELETE FROM subscribers WHERE userId = ? AND subscribedToId = ?", [
             id,
             accountToUnsubId
         ]);
+
+        const account = await conn.query("SELECT subscribedNb FROM accounts WHERE id = ?", [id]);
+        const accountSubs = account[0].subscribedNb - 1;
+        await conn.query("UPDATE accounts SET subscribedNb = ? WHERE id = ?", [accountSubs, id]);
+
+        const accountToSub = await conn.query("SELECT subscribersNb FROM accounts WHERE id = ?", [accountToUnsubId]);
+        const accountToSubSubs = accountToSub[0].subscribersNb - 1;
+        await conn.query("UPDATE accounts SET subscribersNb = ? WHERE id = ?", [accountToSubSubs, accountToUnsubId]);
+
         conn.end();
 
         return res.json({ error: false, message: 'Unsubscribed' });

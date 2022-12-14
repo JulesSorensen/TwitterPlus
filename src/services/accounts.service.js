@@ -18,19 +18,21 @@ export default function accountsService(app, pool) {
         const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');
         const conn = await pool.getConnection();
-        let rows;
+        let account;
 
         if (!name) {
-            rows = await conn.query("SELECT id, name, picture, background, likes, subscribedNb, subscribersNb, certification FROM accounts WHERE id = ?", [id]);
-            rows[0].self = true;
+            account = await conn.query("SELECT id, name, picture, background, likes, subscribedNb, subscribersNb, certification FROM accounts WHERE id = ?", [id]);
+            account[0].self = true;
         } else {
-            rows = await conn.query("SELECT id, name, picture, background, likes, subscribedNb, subscribersNb, certification FROM accounts WHERE name = ?", [name]);
-            if (rows[0]?.id === id) rows[0].self = true;
+            account = await conn.query("SELECT id, name, picture, background, likes, subscribedNb, subscribersNb, certification FROM accounts WHERE name = ?", [name]);
+            if (account[0]?.id === id) account[0].self = true;
         }
+        const subs = await conn.query("SELECT subscribedToId FROM subscribers WHERE userId = ?", [id]);
         conn.end();
+        if (subs.some(sub => sub.subscribedToId === account[0].id)) account[0].subscribed = true;
 
-        if (rows.length === 0) return res.status(404).send({ error: true, message: 'Account not found' });
-        return res.json(rows[0]);
+        if (account.length === 0) return res.status(404).send({ error: true, message: 'Account not found' });
+        return res.json(account[0]);
     })
 
     app.get('/findAccounts', async (req, res) => {
@@ -39,7 +41,7 @@ export default function accountsService(app, pool) {
         const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');
 
-        const rows = await conn.query("SELECT name, picture, background, certification FROM accounts WHERE name LIKE ? LIMIT 3", [`%${name}%`]);
+        const rows = await conn.query("SELECT name, picture, certification FROM accounts WHERE name LIKE ? LIMIT 3", [`%${name}%`]);
         conn.end();
 
         if (rows.length === 0) return res.status(404).send({ error: true, message: 'Account not found' });
@@ -48,16 +50,16 @@ export default function accountsService(app, pool) {
 
     app.get('/accountRecommandation', async (req, res) => {
         const conn = await pool.getConnection();
-        const { error } = await checkToken(req, pool);
+        const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');
 
-        let accounts = await conn.query("SELECT name, picture, background, certification FROM accounts ORDER BY RAND() LIMIT 3");
+        let accounts = await conn.query("SELECT id, name, picture, certification FROM accounts WHERE id != ? ORDER BY RAND() LIMIT 5", [id]);
         conn.end();
-        const subcribedTo = await conn.query("SELECT subscribedTo FROM subscriptions WHERE subscriber = ?", [id]);
+        const subcribedTo = await conn.query("SELECT subscribedToId FROM subscribers WHERE userId = ?", [id]);
         accounts = accounts.map(account => {
-            if (subcribedTo.some(sub => sub.subscribedTo === account.id)) return { ...account, subscribed: true };
+            account.subscribed = subcribedTo.some(sub => sub.subscribedToId === account.id);
             return account;
-        })
+        });
 
         return res.json(accounts);
     })
