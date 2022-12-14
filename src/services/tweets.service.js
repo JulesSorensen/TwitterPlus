@@ -6,11 +6,8 @@ export default function tweetsService(app, pool) {
         const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');
 
-        const page = (((req.query.page ?? 1) - 1) * 30);
         const conn = await pool.getConnection();
-        let tweets = await conn.query("SELECT t.id, a.name, a.picture, a.certification, authorId, parentId, content, t.likes, commentsNb, retweetsNb, isRetweet, retweetOfId, t.createdAt, withComments FROM tweets t JOIN accounts a ON a.id = t.authorId WHERE parentId IS NULL ORDER BY t.createdAt DESC LIMIT 30 OFFSET ?", [
-            page
-        ]);
+        let tweets = await conn.query("SELECT t.id, a.name, a.picture, a.certification, authorId, parentId, content, t.likes, commentsNb, retweetsNb, isRetweet, retweetOfId, t.createdAt, withComments FROM tweets t JOIN accounts a ON a.id = t.authorId WHERE parentId IS NULL ORDER BY t.createdAt DESC");
         const liked = await conn.query("SELECT tweetId FROM likes WHERE userId = ?", [id]);
         const retweeted = await conn.query("SELECT retweetOfId FROM tweets WHERE authorId = ? AND isRetweet = TRUE", [id]);
         const bookmarked = await conn.query("SELECT tweetId FROM bookmarks WHERE userId = ?", [id]);
@@ -26,9 +23,11 @@ export default function tweetsService(app, pool) {
                 const originalAuthor = await conn.query("SELECT name, picture, certification FROM accounts WHERE id = ?", [originalTweet[0].authorId]);
 
                 tweet = {
+                    ...tweet,
                     ...originalTweet[0],
                     name: originalAuthor[0].name,
                     picture: originalAuthor[0].picture,
+                    certification: originalAuthor[0].certification,
                     isRetweet: true,
                     retweeterName: account[0].name,
                     retweeterSelf: account[0].id === id,
@@ -83,11 +82,9 @@ export default function tweetsService(app, pool) {
         const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');
 
-        const page = (((req.query.page ?? 1) - 1) * 30);
         const conn = await pool.getConnection();
-        let tweets = await conn.query("SELECT t.id, a.name, a.picture, a.certification, authorId, parentId, content, t.likes, commentsNb, retweetsNb, isRetweet, retweetOfId, t.createdAt, withComments FROM tweets t JOIN accounts a ON a.id = t.authorId WHERE authorId = ? AND parentId IS NULL ORDER BY t.createdAt DESC LIMIT 30 OFFSET ?", [
-            authorId,
-            page
+        let tweets = await conn.query("SELECT t.id, a.name, a.picture, a.certification, authorId, parentId, content, t.likes, commentsNb, retweetsNb, isRetweet, retweetOfId, t.createdAt, withComments FROM tweets t JOIN accounts a ON a.id = t.authorId WHERE authorId = ? AND parentId IS NULL ORDER BY t.createdAt DESC", [
+            authorId
         ]);
 
         const liked = await conn.query("SELECT tweetId FROM likes WHERE userId = ?", [id]);
@@ -105,9 +102,11 @@ export default function tweetsService(app, pool) {
                 const originalAuthor = await conn.query("SELECT name, picture, certification FROM accounts WHERE id = ?", [originalTweet[0].authorId]);
 
                 tweet = {
+                    ...tweet,
                     ...originalTweet[0],
                     name: originalAuthor[0].name,
                     picture: originalAuthor[0].picture,
+                    certification: originalAuthor[0].certification,
                     isRetweet: true,
                     retweeterName: account[0].name,
                     retweeterSelf: account[0].id === id,
@@ -128,11 +127,9 @@ export default function tweetsService(app, pool) {
         const subscribedIds = (await pool.query("SELECT subscribedToId FROM subscribers WHERE userId = ?", [id])).map(sub => sub.subscribedToId);
         subscribedIds.push(id);
 
-        const page = (((req.query.page ?? 1) - 1) * 30);
         const conn = await pool.getConnection();
-        let tweets = await conn.query("SELECT t.id, a.name, a.picture, a.certification, authorId, parentId, content, t.likes, commentsNb, retweetsNb, isRetweet, retweetOfId, t.createdAt, withComments FROM tweets t JOIN accounts a ON a.id = t.authorId WHERE parentId IS NULL AND t.authorId IN (?) ORDER BY t.createdAt DESC LIMIT 30 OFFSET ?", [
-            subscribedIds,
-            page
+        let tweets = await conn.query("SELECT t.id, a.name, a.picture, a.certification, authorId, parentId, content, t.likes, commentsNb, retweetsNb, isRetweet, retweetOfId, t.createdAt, withComments FROM tweets t JOIN accounts a ON a.id = t.authorId WHERE parentId IS NULL AND t.authorId IN (?) ORDER BY t.createdAt DESC", [
+            subscribedIds
         ]);
         const liked = await conn.query("SELECT tweetId FROM likes WHERE userId = ?", [id]);
         const retweeted = await conn.query("SELECT retweetOfId FROM tweets WHERE authorId = ? AND isRetweet = TRUE", [id]);
@@ -183,7 +180,7 @@ export default function tweetsService(app, pool) {
                 id,
                 parentId,
                 content.replace(/\s+/g, ' ').trim(),
-                parentTweet.withComments ?? false
+                withComments
             ]);
 
             let newCmNb = parentTweet.commentsNb + 1;

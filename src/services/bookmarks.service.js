@@ -12,6 +12,8 @@ export default function bookmarksService(app, pool) {
         ])).map(row => row.tweetId);
         conn.end();
 
+        if (tweetIds.length === 0) return res.json([]);
+
         let tweets = await conn.query("SELECT t.id, a.name, a.picture, a.certification, authorId, parentId, content, t.likes, commentsNb, retweetsNb, isRetweet, retweetOfId, t.createdAt, withComments FROM tweets t JOIN accounts a ON a.id = t.authorId WHERE t.id IN (?)", [tweetIds]);
         const liked = await conn.query("SELECT tweetId FROM likes WHERE userId = ?", [id]);
         const retweeted = await conn.query("SELECT retweetOfId FROM tweets WHERE authorId = ? AND isRetweet = TRUE", [id]);

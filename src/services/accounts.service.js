@@ -84,22 +84,36 @@ export default function accountsService(app, pool) {
     })
 
     app.patch('/accounts', async (req, res) => {
-        const { name, email, password, picture, background } = req.body;
+        const { name, email, picture, background, certification } = req.body;
         const conn = await pool.getConnection();
         const { id, error } = await checkToken(req, pool);
         if (error) return launchError(res, 401, 'Invalid token');
 
-        const current = await conn.query("SELECT name, email, password, picture, background FROM accounts WHERE id = ?", [id]);
-        await conn.query("UPDATE accounts SET name = ?, email = ?, password = ?, picture = ?, background = ? WHERE id = ?", [
+        const current = await conn.query("SELECT name, email, picture, background, certification FROM accounts WHERE id = ?", [id]);
+        await conn.query("UPDATE accounts SET name = ?, email = ?, picture = ?, background = ?, certification = ? WHERE id = ?", [
             name ?? current[0].name,
             email ?? current[0].email,
-            password ?? current[0].password,
             picture ?? current[0].picture,
             background ?? current[0].background,
+            certification ?? current[0].certification,
             id
         ]);
 
         return res.json({ error: false, message: 'Account updated' });
+    })
+
+    app.patch('/accounts/password', async (req, res) => {
+        const { password, newPassword } = req.body;
+        const conn = await pool.getConnection();
+        const { id, error } = await checkToken(req, pool);
+        if (error) return launchError(res, 401, 'Invalid token');
+
+        const current = await conn.query("SELECT password FROM accounts WHERE id = ?", [id]);
+        if (current[0].password !== sha1(password)) return launchError(res, 401, 'Invalid password');
+
+        await conn.query("UPDATE accounts SET password = ? WHERE id = ?", [sha1(newPassword), id]);
+
+        return res.json({ error: false, message: 'Password updated' });
     })
 
     app.delete('/accounts', async (req, res) => {
@@ -109,5 +123,15 @@ export default function accountsService(app, pool) {
 
         await conn.query("DELETE FROM accounts WHERE id = ?", [id]);
         return res.json({ error: false, message: 'Account deleted' });
+    })
+
+    app.get('/leaderboard', async (req, res) => {
+        const conn = await pool.getConnection();
+        const { id, error } = await checkToken(req, pool);
+        if (error) return launchError(res, 401, 'Invalid token');
+
+        const accounts = await conn.query("SELECT name, picture, certification, subscribersNb, createdAt FROM accounts ORDER BY subscribersNb DESC LIMIT 10");
+
+        return res.json(accounts);
     })
 }
