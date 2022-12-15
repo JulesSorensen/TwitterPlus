@@ -16,11 +16,11 @@ const pool = mariadb.createPool({
 const app = express();
 app.use(bodyParser.json());
 
-app.use(express.static("public"));
-
+app.use("/", express.static("public"));
 await startServices(app, pool);
+app.get('*', (req, res) => { res.sendFile(`${process.env.PATH}/index.html`) });
 
-const port = process.env.ALWAYSDATA_HTTPD_PORT ?? process.env.PORT ?? 3000;
+const port = process.env.ALWAYSDATA_HTTPD_PORT ?? 3000;
 
 app.listen(port, () => {
     console.log('Example app listening on port 3000!');

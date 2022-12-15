@@ -54,8 +54,8 @@ export default function accountsService(app, pool) {
         if (error) return launchError(res, 401, 'Invalid token');
 
         let accounts = await conn.query("SELECT id, name, picture, certification FROM accounts WHERE id != ? ORDER BY RAND() LIMIT 5", [id]);
-        conn.end();
         const subcribedTo = await conn.query("SELECT subscribedToId FROM subscribers WHERE userId = ?", [id]);
+        conn.end();
         accounts = accounts.map(account => {
             account.subscribed = subcribedTo.some(sub => sub.subscribedToId === account.id);
             return account;
@@ -79,6 +79,7 @@ export default function accountsService(app, pool) {
             account.email,
             sha1(account.password)
         ]);
+        conn.end();
 
         return res.json({ error: false, message: 'Account created' });
     })
@@ -98,6 +99,7 @@ export default function accountsService(app, pool) {
             certification ?? current[0].certification,
             id
         ]);
+        conn.end();
 
         return res.json({ error: false, message: 'Account updated' });
     })
@@ -112,6 +114,7 @@ export default function accountsService(app, pool) {
         if (current[0].password !== sha1(password)) return launchError(res, 401, 'Invalid password');
 
         await conn.query("UPDATE accounts SET password = ? WHERE id = ?", [sha1(newPassword), id]);
+        conn.end();
 
         return res.json({ error: false, message: 'Password updated' });
     })
@@ -122,6 +125,7 @@ export default function accountsService(app, pool) {
         if (error) return launchError(res, 401, 'Invalid token');
 
         const accounts = await conn.query("SELECT name, picture, certification, subscribersNb, createdAt FROM accounts ORDER BY subscribersNb DESC LIMIT 3");
+        conn.end();
 
         return res.json(accounts);
     })
